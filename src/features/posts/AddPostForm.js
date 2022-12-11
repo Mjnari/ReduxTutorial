@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { nanoid } from '@reduxjs/toolkit';
-
-import { postAdded } from './postsSlice';
+import { addNewPost, postAdded } from './postsSlice';
 
 function AddPostForm() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [userId, setUserId] = useState('');
+  const [addRequestStatus, setAddRequestStatus] = useState('idle');
 
   const dispatch = useDispatch();
 
@@ -25,17 +25,25 @@ function AddPostForm() {
     setUserId(event.target.value);
   }
 
-  function onSavePostClicked(event) {
+  const canSave = [title, content, userId].every(Boolean) && addRequestStatus === 'idle';
+
+  async function onSavePostClicked(event) {
     event.preventDefault();
 
-    if (title && content) {
-      dispatch(postAdded(title, content, userId));
-      setTitle('');
-      setContent('');
+    if (canSave) {
+      try {
+        setAddRequestStatus('pending');
+        await dispatch(addNewPost({ title, content, user: userId })).unwrap();
+        setTitle('');
+        setContent('');
+        setUserId('');
+      } catch (error) {
+        console.error('Failed to save the post: ', error);
+      }
+      setAddRequestStatus('idle');
     }
   }
 
-  const canSave = !!title && !!content && !!userId;
 
   const usersOptions = users.map(user => (
     <option key={user.id} value={user.id}>
@@ -61,7 +69,7 @@ function AddPostForm() {
           {usersOptions}
         </select>
         <label htmlFor="postContent">Content:</label>
-        <input 
+        <input
           type="text"
           id="postContent"
           name="postContent"
